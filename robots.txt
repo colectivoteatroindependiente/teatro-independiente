@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://colectivoteatroindependiente.github.io/teatro-independiente/sitemap.xml
