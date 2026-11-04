@@ -60,7 +60,7 @@ h2{font-family:Lora,Georgia,serif;font-size:26px;line-height:1.15;margin:6px 0 2
 <div id="wrap"><div id="game">
 <canvas id="c"></canvas>
 <div class="hud off" id="hud"><span id="score">0 pts</span><span class="mid"><span id="lvl">Nivel 1 de 3</span><span class="bar"><i id="prog"></i></span></span><span class="right"><span class="lives" id="lives">❤️❤️❤️</span><button class="snd" id="snd" aria-label="Música">🔊</button></span></div>
-<audio id="mus" src="audio/reciclaje.mp3" loop preload="none"></audio>
+<audio id="mus" src="audio/reciclaje.mp3" loop preload="auto" playsinline></audio>
 
 <div class="screen" id="start">
  <div class="cast"><img src="img/marinera.webp" alt="Pata de Lata" class="c1"><img src="img/pirata.webp" alt="Capitán BarbaSura" class="c2"><img src="img/marinero.webp" alt="Polucinio" class="c3"></div>
@@ -132,13 +132,14 @@ let state='start',phase,L,lvl,boat,objs,score,lvlStart,lives,speed,t,spawnT,inv,
 function initWaves(){waves=[];for(let i=0;i<26;i++)waves.push({x:Math.random()*W,y:Math.random()*H,l:8+Math.random()*16});}
 function startLevel(i){size();lvl=i;L=LEVELS[i];boat={x:W/2,y:H*0.8,w:W*0.17};targetX=boat.x;objs=[];lives=3;speed=H*L.base;t=0;spawnT=0.6;inv=0;pops=[];phase='run';giant=null;lvlStart=score;
  ['start','lvlok','over','win'].forEach(s=>$(s).classList.add('hide'));state='play';$('hud').classList.remove('off');hud();}
-function newGame(){score=0;saved=0;cleaned=0;initWaves();startLevel(0);music(true);}
+function newGame(){music(true);score=0;saved=0;cleaned=0;initWaves();startLevel(0);}
 function hud(){$('score').textContent=score+' pts';$('lives').textContent='❤️'.repeat(Math.max(lives,0))+'🤍'.repeat(3-Math.max(lives,0));$('lvl').textContent='Nivel '+(lvl+1)+' de 3';$('prog').style.width=Math.min(100,(t/L.dur)*100)+'%';}
 
 // music
 const mus=$('mus');let muted=false;try{muted=localStorage.getItem('barbasura_mute')==='1'}catch(e){}
 function setIcon(){$('snd').textContent=muted?'🔇':'🔊';}setIcon();
-function music(on){if(muted||!on){mus.pause();return;}mus.volume=0.45;const p=mus.play();if(p&&p.catch)p.catch(()=>{});}
+function music(on){if(muted||!on){mus.pause();return;}mus.volume=0.5;try{const p=mus.play();if(p&&p.catch)p.catch(()=>{$('snd').textContent='🔈';$('snd').style.background='#d7262e';});}catch(e){}}
+mus.addEventListener('playing',()=>{$('snd').style.background='';setIcon();});
 $('snd').onclick=e=>{e.stopPropagation();muted=!muted;try{localStorage.setItem('barbasura_mute',muted?'1':'0')}catch(err){}setIcon();music(!muted);};
 
 function spawn(){
@@ -271,6 +272,12 @@ function step(ts){
  if(giant)drawGiant(giant);
  for(const o of objs){if(o.type==='island')drawIsland(o);else if(o.type==='turtle')drawTurtle(o);else if(o.type==='char')drawChar(o);else drawBottle(o);}
  if(boat)drawBoat(boat);
+ if(state==='play'&&t<3){const al=Math.min(1,(3-t)*1.5);ctx.save();ctx.globalAlpha=al;
+  const bw=Math.min(W*0.9,360),bh=86,bx=(W-bw)/2,byy=H*0.2;ctx.fillStyle='rgba(11,34,96,.88)';ctx.beginPath();ctx.roundRect?ctx.roundRect(bx,byy,bw,bh,18):ctx.rect(bx,byy,bw,bh);ctx.fill();
+  const ci=IMG[L.final?'tortuga':L.char];if(ci&&ci.ok){const h=bh*1.15,iw=h*ci.width/ci.height;ctx.drawImage(ci,bx+6,byy+bh-h,iw,h);}
+  ctx.fillStyle='#e2c77e';ctx.textAlign='left';ctx.font='700 12px Poppins,Arial';ctx.fillText('NIVEL '+(lvl+1)+' DE 3',bx+bh*1.2,byy+32);
+  ctx.fillStyle='#fff';ctx.font='700 17px Poppins,Arial';ctx.fillText(L.final?'¡Llega a la gran isla!':'¡Rescata a '+L.name+'!',bx+bh*1.2,byy+58);
+  ctx.restore();}
  ctx.textAlign='center';ctx.font='700 16px Poppins,Arial';
  for(const p of pops){p.t-=dt;p.y-=40*dt;ctx.globalAlpha=Math.max(p.t,0);ctx.fillStyle=p.c;ctx.fillText(p.txt,p.x,p.y);}ctx.globalAlpha=1;pops=pops.filter(p=>p.t>0);
  requestAnimationFrame(step);
