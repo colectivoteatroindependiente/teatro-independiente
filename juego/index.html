@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>BarbaSura: ¡Salva el mar! · Juega con nosotros</title>
+<meta name="description" content="Ayuda al Capitán BarbaSura a esquivar las islas de basura y rescatar a las tortugas. Un juego del Colectivo Teatro Independiente.">
+<meta property="og:title" content="BarbaSura: ¡Salva el mar!">
+<meta property="og:description" content="Esquiva las islas de basura y rescata a las tortugas. Juega con el Colectivo Teatro Independiente.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@700&family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0b2260;--red:#d7262e;--teal:#1aa79a;--gold:#e2c77e}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#0b2260;color:#fff;font-family:Poppins,Arial,sans-serif;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+#game{position:relative;width:min(100vw,calc(100vh*0.62));height:min(100vh,calc(100vw/0.62));max-width:520px;max-height:840px;border-radius:0;overflow:hidden;box-shadow:0 0 60px rgba(0,0,0,.4)}
+@media(min-width:600px){#game{border-radius:18px}}
+canvas{display:block;width:100%;height:100%}
+.hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;font-weight:700;font-size:15px;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.5)}
+.hud .lives{letter-spacing:2px;font-size:18px}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;background:linear-gradient(180deg,rgba(11,34,96,.55),rgba(11,34,96,.92))}
+.screen.hide{display:none}
+.eb{font-size:11px;letter-spacing:.25em;text-transform:uppercase;color:var(--gold);font-weight:700}
+h1{font-family:Lora,Georgia,serif;font-size:34px;line-height:1.1;margin:8px 0 10px}
+.screen p{font-size:14.5px;line-height:1.5;opacity:.92;max-width:340px}
+.how{display:grid;gap:8px;margin:16px 0 6px;font-size:13.5px;text-align:left}
+.how div{display:flex;gap:10px;align-items:center;background:rgba(255,255,255,.1);border-radius:10px;padding:8px 12px}
+.how b{font-size:18px;width:24px;text-align:center}
+.btn{display:inline-block;border:0;cursor:pointer;font:700 16px Poppins,Arial,sans-serif;padding:13px 26px;border-radius:999px;margin:8px 4px 0;text-decoration:none}
+.r{background:var(--red);color:#fff}.w{background:#fff;color:var(--navy)}.g{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.6)}
+.big{font-family:Lora,Georgia,serif;font-size:56px;color:var(--gold);line-height:1;margin:6px 0}
+.small{font-size:12px;opacity:.7;margin-top:14px}
+.small a{color:#fff}
+</style>
+</head>
+<body>
+<div id="wrap"><div id="game">
+<canvas id="c"></canvas>
+<div class="hud" id="hud"><span id="score">0 pts</span><span class="lives" id="lives">❤️❤️❤️</span></div>
+
+<div class="screen" id="start">
+ <div class="eb">Colectivo Teatro Independiente</div>
+ <h1>BarbaSura:<br>¡Salva el mar!</h1>
+ <p>El Capitán BarbaSura navega por un océano lleno de basura. Ayúdalo a llegar lejos y a cuidar el mar.</p>
+ <div class="how">
+  <div><b>👆</b> Arrastra el dedo o usa las flechas para mover el barco</div>
+  <div><b>🗑️</b> Esquiva las islas de basura</div>
+  <div><b>🐢</b> Rescata tortugas: +10 puntos</div>
+  <div><b>🧴</b> Recoge basura suelta: +5 puntos</div>
+ </div>
+ <button class="btn r" id="play">¡A navegar!</button>
+ <div class="small">Inspirado en la obra <a href="https://youtu.be/a9e_T_y2amU" target="_blank" rel="noopener">BarbaSura y la Tortuga</a></div>
+</div>
+
+<div class="screen hide" id="over">
+ <div class="eb">Fin del viaje</div>
+ <div class="big" id="final">0</div>
+ <div id="best" style="font-size:13px;opacity:.8"></div>
+ <p id="msg" style="margin-top:12px"></p>
+ <div><button class="btn r" id="again">Jugar otra vez</button></div>
+ <div><a class="btn w" href="https://youtu.be/a9e_T_y2amU" target="_blank" rel="noopener">▶ Ver la obra</a><a class="btn g" href="../">Volver a la página</a></div>
+</div>
+</div></div>
+
+<script>
+(()=>{
+const cv=document.getElementById('c'),ctx=cv.getContext('2d'),box=document.getElementById('game');
+let W=0,H=0,DPR=1;
+function size(){const r=box.getBoundingClientRect();DPR=Math.min(window.devicePixelRatio||1,2);W=r.width;H=r.height;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);}
+window.addEventListener('resize',size);size();
+
+const $=id=>document.getElementById(id);
+let best=0;try{best=+localStorage.getItem('barbasura_best')||0}catch(e){}
+
+let state='start',boat,objs,score,lives,speed,t,spawnT,inv,targetX,keys={},waves=[],pops=[],last=0,saved,cleaned;
+function reset(){boat={x:W/2,y:H*0.8,w:W*0.17};targetX=boat.x;objs=[];score=0;lives=3;speed=H*0.18;t=0;spawnT=0;inv=0;pops=[];saved=0;cleaned=0;
+ waves=[];for(let i=0;i<26;i++)waves.push({x:Math.random()*W,y:Math.random()*H,l:8+Math.random()*16});hud();}
+function hud(){$('score').textContent=score+' pts';$('lives').textContent='❤️'.repeat(lives)+'🤍'.repeat(3-lives);}
+
+// --- spawning
+function spawn(){
+ const r=Math.random(),lvl=Math.min(t/60,1);
+ if(r<0.55){ // trash island
+  const s=W*(0.09+Math.random()*0.07+lvl*0.04);
+  const pts=[];const n=9;for(let i=0;i<n;i++){const a=i/n*Math.PI*2;pts.push([Math.cos(a)*(s*(0.75+Math.random()*0.35)),Math.sin(a)*(s*0.6*(0.75+Math.random()*0.35))]);}
+  const items=[];for(let i=0;i<6;i++)items.push({x:(Math.random()-.5)*s*1.2,y:(Math.random()-.5)*s*0.6,k:Math.floor(Math.random()*4),a:Math.random()*6});
+  objs.push({type:'island',x:s+Math.random()*(W-2*s),y:-s,r:s*0.8,s,pts,items});
+ }else if(r<0.78){objs.push({type:'turtle',x:30+Math.random()*(W-60),y:-30,r:W*0.045,ph:Math.random()*6});}
+ else{objs.push({type:'bottle',x:20+Math.random()*(W-40),y:-20,r:W*0.03,a:Math.random()*6,k:Math.floor(Math.random()*3)});}
+}
+
+// --- drawing
+function sea(dt){
+ const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#0e6fa8');g.addColorStop(1,'#0a3f78');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ ctx.strokeStyle='rgba(255,255,255,.18)';ctx.lineWidth=2;ctx.lineCap='round';
+ for(const w of waves){w.y+=speed*0.6*dt;if(w.y>H+10){w.y=-10;w.x=Math.random()*W}
+  ctx.beginPath();ctx.moveTo(w.x-w.l,w.y);ctx.quadraticCurveTo(w.x-w.l/2,w.y-4,w.x,w.y);ctx.quadraticCurveTo(w.x+w.l/2,w.y+4,w.x+w.l,w.y);ctx.stroke();}
+}
+function drawBoat(b){
+ const w=b.w,x=b.x,y=b.y;ctx.save();ctx.translate(x,y);
+ if(inv>0&&Math.floor(inv*10)%2)ctx.globalAlpha=.4;
+ // wake
+ ctx.fillStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.ellipse(0,w*0.55,w*0.45,w*0.18,0,0,Math.PI*2);ctx.fill();
+ // hull
+ ctx.fillStyle='#7a4a24';ctx.beginPath();ctx.moveTo(-w*0.5,w*0.1);ctx.lineTo(w*0.5,w*0.1);ctx.lineTo(w*0.36,w*0.45);ctx.lineTo(-w*0.36,w*0.45);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#d7262e';ctx.fillRect(-w*0.46,w*0.14,w*0.92,w*0.07);
+ // mast + sail
+ ctx.fillStyle='#4a2c14';ctx.fillRect(-w*0.03,-w*0.75,w*0.06,w*0.86);
+ ctx.fillStyle='#f3ead6';ctx.beginPath();ctx.moveTo(w*0.04,-w*0.72);ctx.quadraticCurveTo(w*0.55,-w*0.4,w*0.04,-w*0.05);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#111';ctx.beginPath();ctx.moveTo(-w*0.03,-w*0.75);ctx.lineTo(-w*0.38,-w*0.66);ctx.lineTo(-w*0.03,-w*0.56);ctx.fill();
+ ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(-w*0.17,-w*0.665,w*0.035,0,Math.PI*2);ctx.fill();
+ // captain
+ ctx.fillStyle='#f2c9a0';ctx.beginPath();ctx.arc(-w*0.24,-w*0.02,w*0.1,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#1b1b1b';ctx.beginPath();ctx.arc(-w*0.24,w*0.05,w*0.09,0,Math.PI);ctx.fill(); // beard
+ ctx.beginPath();ctx.ellipse(-w*0.24,-w*0.11,w*0.16,w*0.05,0,0,Math.PI*2);ctx.fill();
+ ctx.beginPath();ctx.moveTo(-w*0.34,-w*0.12);ctx.quadraticCurveTo(-w*0.24,-w*0.3,-w*0.14,-w*0.12);ctx.fill();
+ ctx.fillStyle='#fff';ctx.font=`${w*0.09}px sans-serif`;ctx.textAlign='center';ctx.fillText('☠',-w*0.24,-w*0.13);
+ ctx.restore();
+}
+const trashCols=['#9ad3e8','#e05b4c','#f2d04b','#7cc36b','#cfcfcf'];
+function drawItem(k,a,s){ctx.save();ctx.rotate(a);
+ if(k===0){ctx.fillStyle='#9ad3e8';ctx.fillRect(-s*0.35,-s,s*0.7,s*1.6);ctx.fillStyle='#2a7bd0';ctx.fillRect(-s*0.18,-s*1.25,s*0.36,s*0.3);} // bottle
+ else if(k===1){ctx.fillStyle='#d9d9d9';ctx.beginPath();ctx.ellipse(0,0,s*0.6,s*0.9,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#e05b4c';ctx.fillRect(-s*0.6,-s*0.2,s*1.2,s*0.35);} // can
+ else if(k===2){ctx.fillStyle='rgba(255,255,255,.85)';ctx.beginPath();ctx.moveTo(-s,-s*0.6);ctx.quadraticCurveTo(0,-s*1.2,s,-s*0.6);ctx.lineTo(s*0.7,s);ctx.lineTo(-s*0.7,s);ctx.closePath();ctx.fill();} // bag
+ else{ctx.strokeStyle='#f2d04b';ctx.lineWidth=s*0.3;ctx.beginPath();ctx.arc(0,0,s*0.6,0,Math.PI*2);ctx.stroke();}
+ ctx.restore();}
+function drawIsland(o){ctx.save();ctx.translate(o.x,o.y);
+ ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.ellipse(4,8,o.s*1.05,o.s*0.62,0,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#6b6152';ctx.beginPath();o.pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fill();
+ ctx.fillStyle='#857a68';ctx.beginPath();o.pts.forEach((p,i)=>i?ctx.lineTo(p[0]*0.7,p[1]*0.7-3):ctx.moveTo(p[0]*0.7,p[1]*0.7-3));ctx.closePath();ctx.fill();
+ for(const it of o.items){ctx.save();ctx.translate(it.x,it.y);drawItem(it.k,it.a,o.s*0.11);ctx.restore();}
+ ctx.restore();}
+function drawTurtle(o){ctx.save();ctx.translate(o.x,o.y);const r=o.r,f=Math.sin(o.ph)*0.5;
+ ctx.fillStyle='#3e9b5a';
+ [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sy])=>{ctx.save();ctx.translate(sx*r*0.7,sy*r*0.55);ctx.rotate(sx*sy*(0.6+f*sy));ctx.beginPath();ctx.ellipse(0,0,r*0.42,r*0.2,0,0,Math.PI*2);ctx.fill();ctx.restore();});
+ ctx.beginPath();ctx.arc(0,-r*1.05,r*0.33,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#111';ctx.beginPath();ctx.arc(-r*0.12,-r*1.12,r*0.06,0,Math.PI*2);ctx.arc(r*0.12,-r*1.12,r*0.06,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#2f6e3f';ctx.beginPath();ctx.ellipse(0,0,r*0.82,r*0.95,0,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#8ccf74';ctx.beginPath();ctx.ellipse(0,0,r*0.62,r*0.75,0,0,Math.PI*2);ctx.fill();
+ ctx.strokeStyle='#2f6e3f';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,-r*0.75);ctx.lineTo(0,r*0.75);ctx.moveTo(-r*0.6,0);ctx.lineTo(r*0.6,0);ctx.stroke();
+ // plastic ring caught
+ ctx.strokeStyle='rgba(242,208,75,.9)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,-r*0.85,r*0.4,0.2,Math.PI-0.2);ctx.stroke();
+ ctx.restore();}
+function drawBottle(o){ctx.save();ctx.translate(o.x,o.y);
+ ctx.fillStyle='rgba(255,255,255,.25)';ctx.beginPath();ctx.arc(0,0,o.r*1.3,0,Math.PI*2);ctx.fill();
+ drawItem(o.k,o.a,o.r*0.7);ctx.restore();}
+
+// --- loop
+function hit(a,bx,by,br){const dx=a.x-bx,dy=a.y-by;return dx*dx+dy*dy<(a.r+br)*(a.r+br);}
+function step(ts){
+ const dt=Math.min((ts-last)/1000||0,0.05);last=ts;
+ sea(state==='play'?dt:dt*0.3);
+ if(state==='play'){
+  t+=dt;speed=H*(0.18+Math.min(t,90)*0.004);
+  spawnT-=dt;if(spawnT<=0){spawn();spawnT=Math.max(0.45,1.25-t*0.012);}
+  if(keys.ArrowLeft)targetX-=W*1.1*dt;if(keys.ArrowRight)targetX+=W*1.1*dt;
+  targetX=Math.max(boat.w*0.5,Math.min(W-boat.w*0.5,targetX));
+  boat.x+=(targetX-boat.x)*Math.min(1,dt*12);
+  if(inv>0)inv-=dt;
+  score+=0;const br=boat.w*0.38,by=boat.y-boat.w*0.1;
+  for(const o of objs){o.y+=speed*dt;if(o.type==='turtle')o.ph+=dt*6;if(o.type==='bottle')o.a+=dt;
+   if(o.dead)continue;
+   if(hit(o,boat.x,by,br)){
+    if(o.type==='island'){if(inv<=0){lives--;inv=1.5;pops.push({x:boat.x,y:boat.y-40,txt:'¡Basura!',c:'#ffb3a7',t:1});hud();if(navigator.vibrate)try{navigator.vibrate(120)}catch(e){}}}
+    else if(o.type==='turtle'){o.dead=1;score+=10;saved++;pops.push({x:o.x,y:o.y,txt:'+10 🐢',c:'#b9f0a5',t:1});hud();}
+    else{o.dead=1;score+=5;cleaned++;pops.push({x:o.x,y:o.y,txt:'+5',c:'#fff',t:1});hud();}
+   }}
+  objs=objs.filter(o=>o.y<H+o.r*3&&!o.dead);
+  if(Math.floor(t)>Math.floor(t-dt)){score+=1;hud();}
+  if(lives<=0)end();
+ }
+ for(const o of objs){if(o.type==='island')drawIsland(o);else if(o.type==='turtle')drawTurtle(o);else drawBottle(o);}
+ if(boat)drawBoat(boat);
+ ctx.textAlign='center';ctx.font='700 16px Poppins,Arial';
+ for(const p of pops){p.t-=dt;p.y-=40*dt;ctx.globalAlpha=Math.max(p.t,0);ctx.fillStyle=p.c;ctx.fillText(p.txt,p.x,p.y);}ctx.globalAlpha=1;pops=pops.filter(p=>p.t>0);
+ requestAnimationFrame(step);
+}
+function start(){size();reset();state='play';$('start').classList.add('hide');$('over').classList.add('hide');}
+function end(){state='over';if(score>best){best=score;try{localStorage.setItem('barbasura_best',best)}catch(e){}}
+ $('final').textContent=score+' pts';$('best').textContent='Tu mejor puntaje: '+best+' pts';
+ $('msg').textContent=`Rescataste ${saved} tortuga${saved===1?'':'s'} y recogiste ${cleaned} basura${cleaned===1?'':'s'}. ¡Gracias por cuidar el océano! Recuerda: la basura va en su lugar, no en el mar.`;
+ $('over').classList.remove('hide');}
+$('play').onclick=start;$('again').onclick=start;
+
+// controls
+function px(e){const r=cv.getBoundingClientRect();return (e.touches?e.touches[0].clientX:e.clientX)-r.left;}
+let drag=false;
+cv.addEventListener('pointerdown',e=>{drag=true;targetX=px(e);});
+window.addEventListener('pointermove',e=>{if(drag)targetX=px(e);});
+window.addEventListener('pointerup',()=>drag=false);
+window.addEventListener('keydown',e=>{keys[e.key]=true;if(e.key===' '&&state!=='play')start();});
+window.addEventListener('keyup',e=>keys[e.key]=false);
+
+reset();requestAnimationFrame(step);
+})();
+</script>
+</body>
+</html>
