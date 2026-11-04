@@ -32,6 +32,12 @@ h1{font-family:Lora,Georgia,serif;font-size:34px;line-height:1.1;margin:8px 0 10
 .big{font-family:Lora,Georgia,serif;font-size:56px;color:var(--gold);line-height:1;margin:6px 0}
 .small{font-size:12px;opacity:.7;margin-top:14px}
 .small a{color:#fff}
+.cast{display:flex;align-items:flex-end;justify-content:center;gap:0;margin-bottom:6px;height:110px}
+.cast img{height:80px;width:auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,.4))}
+.cast .c2{height:110px;margin:0 -8px;z-index:1}
+.over-t{height:120px;width:auto;margin-bottom:4px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.4))}
+#start{background:linear-gradient(180deg,rgba(11,34,96,.55),rgba(11,34,96,.92)),url(img/mapa.webp) center 30%/120% no-repeat}
+@media(max-height:640px){.cast{height:80px}.cast img{height:60px}.cast .c2{height:80px}.how{margin:10px 0 4px}.how div{padding:6px 10px}h1{font-size:28px}}
 </style>
 </head>
 <body>
@@ -40,6 +46,7 @@ h1{font-family:Lora,Georgia,serif;font-size:34px;line-height:1.1;margin:8px 0 10
 <div class="hud" id="hud"><span id="score">0 pts</span><span class="lives" id="lives">❤️❤️❤️</span></div>
 
 <div class="screen" id="start">
+ <div class="cast"><img src="img/marinera.webp" alt="" class="c1"><img src="img/pirata.webp" alt="Capitán BarbaSura" class="c2"><img src="img/marinero.webp" alt="" class="c3"></div>
  <div class="eb">Colectivo Teatro Independiente</div>
  <h1>BarbaSura:<br>¡Salva el mar!</h1>
  <p>El Capitán BarbaSura navega por un océano lleno de basura. Ayúdalo a llegar lejos y a cuidar el mar.</p>
@@ -54,6 +61,7 @@ h1{font-family:Lora,Georgia,serif;font-size:34px;line-height:1.1;margin:8px 0 10
 </div>
 
 <div class="screen hide" id="over">
+ <img src="img/tortuga.webp" alt="La tortuga" class="over-t">
  <div class="eb">Fin del viaje</div>
  <div class="big" id="final">0</div>
  <div id="best" style="font-size:13px;opacity:.8"></div>
@@ -71,6 +79,7 @@ function size(){const r=box.getBoundingClientRect();DPR=Math.min(window.devicePi
 window.addEventListener('resize',size);size();
 
 const $=id=>document.getElementById(id);
+const IMG={};['pirata','tortuga'].forEach(n=>{const i=new Image();i.onload=()=>i.ok=true;i.src='img/'+n+'.webp';IMG[n]=i;});
 let best=0;try{best=+localStorage.getItem('barbasura_best')||0}catch(e){}
 
 let state='start',boat,objs,score,lives,speed,t,spawnT,inv,targetX,keys={},waves=[],pops=[],last=0,saved,cleaned;
@@ -86,7 +95,7 @@ function spawn(){
   const pts=[];const n=9;for(let i=0;i<n;i++){const a=i/n*Math.PI*2;pts.push([Math.cos(a)*(s*(0.75+Math.random()*0.35)),Math.sin(a)*(s*0.6*(0.75+Math.random()*0.35))]);}
   const items=[];for(let i=0;i<6;i++)items.push({x:(Math.random()-.5)*s*1.2,y:(Math.random()-.5)*s*0.6,k:Math.floor(Math.random()*4),a:Math.random()*6});
   objs.push({type:'island',x:s+Math.random()*(W-2*s),y:-s,r:s*0.8,s,pts,items});
- }else if(r<0.78){objs.push({type:'turtle',x:30+Math.random()*(W-60),y:-30,r:W*0.045,ph:Math.random()*6});}
+ }else if(r<0.78){objs.push({type:'turtle',x:30+Math.random()*(W-60),y:-30,r:W*0.055,ph:Math.random()*6});}
  else{objs.push({type:'bottle',x:20+Math.random()*(W-40),y:-20,r:W*0.03,a:Math.random()*6,k:Math.floor(Math.random()*3)});}
 }
 
@@ -102,15 +111,19 @@ function drawBoat(b){
  if(inv>0&&Math.floor(inv*10)%2)ctx.globalAlpha=.4;
  // wake
  ctx.fillStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.ellipse(0,w*0.55,w*0.45,w*0.18,0,0,Math.PI*2);ctx.fill();
- // hull
- ctx.fillStyle='#7a4a24';ctx.beginPath();ctx.moveTo(-w*0.5,w*0.1);ctx.lineTo(w*0.5,w*0.1);ctx.lineTo(w*0.36,w*0.45);ctx.lineTo(-w*0.36,w*0.45);ctx.closePath();ctx.fill();
- ctx.fillStyle='#d7262e';ctx.fillRect(-w*0.46,w*0.14,w*0.92,w*0.07);
+ // hull: patchwork fabric like the retablo
+ ctx.save();ctx.beginPath();ctx.moveTo(-w*0.55,w*0.05);ctx.lineTo(w*0.55,w*0.05);ctx.lineTo(w*0.4,w*0.48);ctx.lineTo(-w*0.4,w*0.48);ctx.closePath();ctx.clip();
+ const pc=['#1f8a3b','#1b1b1b','#c8642a','#e07a3a','#2b47b8','#d7262e','#1f8a3b'];
+ for(let i=0;i<7;i++){ctx.fillStyle=pc[i];ctx.fillRect(-w*0.55+i*w*0.158,w*0.05,w*0.16,w*0.24);ctx.fillStyle=pc[(i+3)%7];ctx.fillRect(-w*0.55+i*w*0.158,w*0.29,w*0.16,w*0.2);}
+ ctx.restore();
+ ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-w*0.55,w*0.05);ctx.lineTo(w*0.55,w*0.05);ctx.lineTo(w*0.4,w*0.48);ctx.lineTo(-w*0.4,w*0.48);ctx.closePath();ctx.stroke();
  // mast + sail
  ctx.fillStyle='#4a2c14';ctx.fillRect(-w*0.03,-w*0.75,w*0.06,w*0.86);
  ctx.fillStyle='#f3ead6';ctx.beginPath();ctx.moveTo(w*0.04,-w*0.72);ctx.quadraticCurveTo(w*0.55,-w*0.4,w*0.04,-w*0.05);ctx.closePath();ctx.fill();
  ctx.fillStyle='#111';ctx.beginPath();ctx.moveTo(-w*0.03,-w*0.75);ctx.lineTo(-w*0.38,-w*0.66);ctx.lineTo(-w*0.03,-w*0.56);ctx.fill();
  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(-w*0.17,-w*0.665,w*0.035,0,Math.PI*2);ctx.fill();
- // captain
+ // captain: puppet photo
+ if(IMG.pirata.ok){const im=IMG.pirata,h=w*0.85,iw=h*im.width/im.height;ctx.drawImage(im,-iw*0.82,-h*0.72,iw,h);ctx.restore();return;}
  ctx.fillStyle='#f2c9a0';ctx.beginPath();ctx.arc(-w*0.24,-w*0.02,w*0.1,0,Math.PI*2);ctx.fill();
  ctx.fillStyle='#1b1b1b';ctx.beginPath();ctx.arc(-w*0.24,w*0.05,w*0.09,0,Math.PI);ctx.fill(); // beard
  ctx.beginPath();ctx.ellipse(-w*0.24,-w*0.11,w*0.16,w*0.05,0,0,Math.PI*2);ctx.fill();
@@ -132,6 +145,11 @@ function drawIsland(o){ctx.save();ctx.translate(o.x,o.y);
  for(const it of o.items){ctx.save();ctx.translate(it.x,it.y);drawItem(it.k,it.a,o.s*0.11);ctx.restore();}
  ctx.restore();}
 function drawTurtle(o){ctx.save();ctx.translate(o.x,o.y);const r=o.r,f=Math.sin(o.ph)*0.5;
+ if(IMG.tortuga.ok){const im=IMG.tortuga,h=r*3.4,iw=h*im.width/im.height;
+  ctx.fillStyle='rgba(255,255,255,.22)';ctx.beginPath();ctx.ellipse(0,h*0.3,r*1.3,r*0.45,0,0,Math.PI*2);ctx.fill();
+  ctx.rotate(f*0.15);ctx.drawImage(im,-iw/2,-h*0.55,iw,h);
+  ctx.strokeStyle='rgba(242,208,75,.95)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(-iw*0.1,-h*0.1,r*0.45,0.2,Math.PI-0.2);ctx.stroke();
+  ctx.restore();return;}
  ctx.fillStyle='#3e9b5a';
  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sy])=>{ctx.save();ctx.translate(sx*r*0.7,sy*r*0.55);ctx.rotate(sx*sy*(0.6+f*sy));ctx.beginPath();ctx.ellipse(0,0,r*0.42,r*0.2,0,0,Math.PI*2);ctx.fill();ctx.restore();});
  ctx.beginPath();ctx.arc(0,-r*1.05,r*0.33,0,Math.PI*2);ctx.fill();
